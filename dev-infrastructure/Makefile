@@ -29,7 +29,7 @@ init: ## See README, must provide "project"
 
 build: ## Run pulumi up for infra setup
 	pulumi up -p 4
-	echo "To set public-read for the infrastructure please run `npm i && npm run set-public-read`"
+	npm i && npm run set-public-read
 
 clean: ## Remove all database documents and filestore objects, must provide "key"
 	clean_cdp_database ${key}
