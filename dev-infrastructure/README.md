@@ -68,13 +68,6 @@ export GOOGLE_CREDENTIALS=$(cat ../.keys/cdp-dev.json)
 make build
 ```
 
-To set public-read for your Cloud Firestore and Storage run:
-
-```bash
-npm i
-npm run set-public-read
-```
-
 ## Infrastructure Management Commands
 
 All of these commands should be run from within the `cdp-backend/dev-infrastructure` directory.
