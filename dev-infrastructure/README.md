@@ -63,7 +63,15 @@ cd cdp-backend/dev-infrastructure
 make login
 make init project={project-name}
 make gen-key project={project-name}
+export GOOGLE_CREDENTIALS=$(cat ../.keys/cdp-dev.json)
 make build
+```
+
+To set public-read for your Cloud Firestore and Storage run:
+
+```bash
+npm i
+npm run set-public-read
 ```
 
 ## Infrastructure Management Commands
@@ -81,6 +89,8 @@ All of these commands should be run from within the `cdp-backend/dev-infrastruct
     ```bash
     make gen-key project={project-name}
     ```
+
+    This additionally updates the `.keys/cdp-dev.json` file to the newly generated key.
 
 -   To create a new dev infrastructure:
 
@@ -100,14 +110,6 @@ All of these commands should be run from within the `cdp-backend/dev-infrastruct
 
     **Note:** You should run `make gen-key` prior to build and ensure you have
     `GOOGLE_CREDENTIALS` set in your environment variables using:
-
-    ```bash
-    export GOOGLE_CREDENTIALS=$(cat ../.keys/{project-name}-sa-dev.json)
-    ```
-
-    and replacing `{project-name}` with your project name.
-
-    or if you have already renamed your key:
 
     ```bash
     export GOOGLE_CREDENTIALS=$(cat ../.keys/cdp-dev.json)

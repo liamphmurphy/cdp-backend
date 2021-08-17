@@ -29,6 +29,7 @@ init: ## See README, must provide "project"
 
 build: ## Run pulumi up for infra setup
 	pulumi up -p 4
+	echo "To set public-read for the infrastructure please run `npm i && npm run set-public-read`"
 
 clean: ## Remove all database documents and filestore objects, must provide "key"
 	clean_cdp_database ${key}
@@ -48,6 +49,7 @@ destroy: ## Fully teardown Pulumi and GCloud, must provide "project"
 
 gen-key: ## Generate a service account JSON, must provide "project"
 	mkdir ../.keys/ -p
+	rm -rf ../.keys/$(project)-sa-dev.json
 	gcloud iam service-accounts create $(project)-sa-dev \
     	--description="CDP Dev Service Account for $(USER)" \
     	--display-name="$(project)-sa-dev"
