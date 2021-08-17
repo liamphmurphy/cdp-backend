@@ -1,0 +1,21 @@
+{
+    "name": "cdp-infrastructure-management",
+    "version": "3.0.0",
+    "description": "Scripts to manage Firebase services",
+    "scripts": {
+        "set-public-read": "node set-public-read.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/CouncilDataProject/cdp-backend.git"
+    },
+    "author": "Council Data Project Contributors",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/CouncilDataProject/cdp-backend/issues"
+    },
+    "homepage": "https://github.com/CouncilDataProject/cdp-backend#README",
+    "dependencies": {
+        "firebase-admin": "^9.11.0"
+    }
+}
