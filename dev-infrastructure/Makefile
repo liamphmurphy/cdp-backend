@@ -59,4 +59,5 @@ gen-key: ## Generate a service account JSON, must provide "project"
 	echo "----------------------------------------------------------------------------"
 	echo "Sleeping for one minute while resources set up"
 	sleep 60
-	echo "Key generation complete"
+	cp -rf ../.keys/$(project)-sa-dev.json ../.keys/cdp-dev.json
+	echo "Key generation complete, updated ../.keys/cdp-dev.json to $(project) key. Be sure to update GOOGLE_CREDENTIALS."

@@ -66,10 +66,8 @@ make gen-key project={project-name}
 make build
 ```
 
-After generating the key, name your `key` file in `cdp-backend/.keys` to `cdp-dev.json`. In case you have many keys, note that by default, the random and minimal event pipelines use the key named `cdp-dev.json`.
-
-
 ## Infrastructure Management Commands
+
 All of these commands should be run from within the `cdp-backend/dev-infrastructure` directory.
 
 -   To log in to GCloud and Pulumi:
@@ -110,6 +108,7 @@ All of these commands should be run from within the `cdp-backend/dev-infrastruct
     and replacing `{project-name}` with your project name.
 
     or if you have already renamed your key:
+
     ```bash
     export GOOGLE_CREDENTIALS=$(cat ../.keys/cdp-dev.json)
     ```
