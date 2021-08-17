@@ -42,9 +42,9 @@ reset: ## Run pulumi destroy and make build, must provide "project"
 	make build
 
 destroy: ## Fully teardown Pulumi and GCloud, must provide "project"
-	pulumi destroy -p 4
-	pulumi stack rm ${project}
+	pulumi stack rm -f ${project}
 	gcloud projects delete ${project}
+	rm -f ../.keys/$(project)-sa-dev.json
 
 gen-key: ## Generate a service account JSON, must provide "project"
 	mkdir ../.keys/ -p
