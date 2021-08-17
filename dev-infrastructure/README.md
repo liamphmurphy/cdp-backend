@@ -43,11 +43,12 @@ For more detailed information please see the
 
 ## Environment Setup
 
-The only environment setup needed to run this deployment is to make sure `pulumi` itself
-and the `gcloud` SDK are both installed.
+The only environment setup needed to run this deployment is to make sure `pulumi` itself,
+the `gcloud` SDK, and `node` are all installed.
 
 -   [pulumi](https://www.pulumi.com/docs/get-started/install/)
 -   [gcloud](https://cloud.google.com/sdk/install)
+-   [node](https://nodejs.org/en/download/)
 
 _If this was the first time installing either of those packages, it is recommended to
 restart your terminal after installation._
