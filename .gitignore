@@ -113,6 +113,10 @@ ENV/
 # VSCode
 .vscode
 
+# Terraform
+*.tfstate
+.terraform
+
 # Vim swap files
 *.swp
 *.swo
