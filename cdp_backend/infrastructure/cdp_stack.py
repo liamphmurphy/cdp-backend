@@ -96,6 +96,15 @@ class CDPStack(pulumi.ComponentResource):
                 parent=self, depends_on=[self.cloudresourcemanager]
             ),
         )
+        self.firebase_rules_service = gcp.projects.Service(
+            f"{self.gcp_project_id}-firebase-rules-service",
+            disable_dependent_services=True,
+            project=self.gcp_project_id,
+            service="firebaserules.googleapis.com",
+            opts=pulumi.ResourceOptions(
+                parent=self, depends_on=[self.cloudresourcemanager]
+            ),
+        )
 
         # Create the firestore application
         self.firestore_app = gcp.appengine.Application(
@@ -109,6 +118,7 @@ class CDPStack(pulumi.ComponentResource):
                     self.firebase_service,
                     self.app_engine_service,
                     self.firestore_service,
+                    self.firebase_rules_service,
                 ],
             ),
         )
@@ -120,7 +130,7 @@ class CDPStack(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.firestore_app]),
         )
 
-        # Set up app engine (firestore) + bucket
+        # Connect app engine (firestore) + bucket
         self.firebase_project = gcp.firebase.ProjectLocation(
             resource_name=f"{self.gcp_project_id}-firebase-project",
             project=self.gcp_project_id,
@@ -129,32 +139,32 @@ class CDPStack(pulumi.ComponentResource):
         )
 
         # Create all firestore indexes
-        for model_cls in DATABASE_MODELS:
-            for idx_field_set in model_cls._INDEXES:
+        # for model_cls in DATABASE_MODELS:
+        #     for idx_field_set in model_cls._INDEXES:
 
-                # Add fields to field list
-                idx_set_name_parts = []
-                idx_set_fields = []
-                for idx_field in idx_field_set.fields:
-                    idx_set_name_parts += [idx_field.name, idx_field.order]
-                    idx_set_fields.append(
-                        firestore.GoogleFirestoreAdminV1IndexFieldArgs(
-                            field_path=idx_field.name,
-                            order=idx_field.order,
-                        )
-                    )
+        #         # Add fields to field list
+        #         idx_set_name_parts = []
+        #         idx_set_fields = []
+        #         for idx_field in idx_field_set.fields:
+        #             idx_set_name_parts += [idx_field.name, idx_field.order]
+        #             idx_set_fields.append(
+        #                 firestore.GoogleFirestoreAdminV1IndexFieldArgs(
+        #                     field_path=idx_field.name,
+        #                     order=idx_field.order,
+        #                 )
+        #             )
 
-                # Finish creating the index set name
-                idx_set_name = "_".join(idx_set_name_parts)
-                fq_idx_set_name = f"{model_cls.collection_name}-{idx_set_name}"
-                firestore.Index(
-                    fq_idx_set_name,
-                    project=self.gcp_project_id,
-                    database_id="(default)",
-                    collection_group_id=model_cls.collection_name,
-                    fields=idx_set_fields,
-                    query_scope="COLLECTION",
-                    opts=pulumi.ResourceOptions(parent=self.firestore_app),
-                )
+        #         # Finish creating the index set name
+        #         idx_set_name = "_".join(idx_set_name_parts)
+        #         fq_idx_set_name = f"{model_cls.collection_name}-{idx_set_name}"
+        #         firestore.Index(
+        #             fq_idx_set_name,
+        #             project=self.gcp_project_id,
+        #             database_id="(default)",
+        #             collection_group_id=model_cls.collection_name,
+        #             fields=idx_set_fields,
+        #             query_scope="COLLECTION",
+        #             opts=pulumi.ResourceOptions(parent=self.firestore_app),
+        #         )
 
         super().register_outputs({})
