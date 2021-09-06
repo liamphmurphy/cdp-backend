@@ -1,11 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import base64
+
 import pulumi
 import pulumi_gcp as gcp
+from pulumi_google_native.firebaserules import v1 as firebaserules
 from pulumi_google_native.firestore import v1 as firestore
 
 from ..database import DATABASE_MODELS
+from ..version import __version__
+
+###############################################################################
+
+PUBLIC_READ_FIRESTORE_RULESET_CONTENT = """
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read;
+    }
+  }
+}
+""".strip()
+
+PUBLIC_READ_STORAGE_RULESET_CONTENT = """
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read;
+    }
+  }
+}
+""".strip()
 
 ###############################################################################
 
@@ -137,6 +165,54 @@ class CDPStack(pulumi.ComponentResource):
             location_id=self.firestore_location,
             opts=pulumi.ResourceOptions(parent=self.firebase_init),
         )
+
+        # TODO:
+        # Create rulesets for firestore and storage and release
+        for service, ruleset_content in [
+            ("firestore", PUBLIC_READ_FIRESTORE_RULESET_CONTENT),
+            ("storage", PUBLIC_READ_STORAGE_RULESET_CONTENT),
+        ]:
+            # Create ruleset
+            ruleset_filename = (
+                f"projects/{self.gcp_project_id}/"
+                f"rulesets/{service}-public-read--cdp-v{__version__}"
+            )
+            generated_ruleset = firebaserules.Ruleset(
+                f"{self.gcp_project_id}-{service}-public-read-rules",
+                project=self.gcp_project_id,
+                source=firebaserules.SourceArgs(
+                    files=[
+                        firebaserules.FileArgs(
+                            name=ruleset_filename,
+                            content=ruleset_content,
+                            fingerprint=str(
+                                base64.b64encode(__version__.encode("utf-8"))
+                            )[2:-1],
+                        )
+                    ]
+                ),
+                opts=pulumi.ResourceOptions(parent=self.firebase_project),
+            )
+
+            # Store on stack
+            ruleset_attr = f"{service}_ruleset"
+            setattr(self, ruleset_attr, generated_ruleset)
+
+            # Release ruleset
+            release_name = (
+                f"projects/{self.gcp_project_id}/"
+                f"releases/{service}-public-read-release--cdp-v{__version__}"
+            )
+            firebaserules.Release(
+                f"{self.gcp_project_id}-{service}-public-read-release",
+                name=release_name,
+                project=self.gcp_project_id,
+                ruleset_name=getattr(self, ruleset_attr).name,
+                opts=pulumi.ResourceOptions(
+                    parent=self.firebase_project,
+                    depends_on=[getattr(self, ruleset_attr)],
+                ),
+            )
 
         # Create all firestore indexes
         for model_cls in DATABASE_MODELS:
