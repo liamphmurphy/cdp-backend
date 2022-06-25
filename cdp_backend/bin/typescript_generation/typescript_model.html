@@ -1,0 +1,11 @@
+import { ResponseData } from "../networking/NetworkResponse";
+import { Model } from "./Model";
+{% for ref in references %}
+import {{ ref }} from "./{{ ref }}";
+{% endfor %}
+
+export default class {{ className }} implements Model {
+    {% for attr in attributes %}
+        {{ attr }}
+    {% endfor %}
+}
