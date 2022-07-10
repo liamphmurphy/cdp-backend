@@ -30,7 +30,11 @@ class Generator:
     """
     name = ""
     docstring = ""
-    attributes_list = []
+    processed_attributes = dict()
+
+    ### below class attributes will be directly printed into the Jinja template. ###
+    attributes_list = [] # contains the lines that declare the attributes in the TS model
+    assignment_list = [] # contains the lines that perform the assignments of the attributes in the TS model's constructor
     references = [] # list of other models that the TS model needs to import
 
     source_tree = {}
@@ -41,20 +45,23 @@ class Generator:
     def __init__(self, model):
         self.name = model.__name__
         self.docstring = inspect.cleandoc(model.__doc__)
-        self.attributes_list = [] # TODO: there is a bug where 'self.attributes_list" state is maintained between Generators... better way to fix this?
+
+        # TODO: I've noticed a bug(?) where these class variables maintain state between different classes, look into this, but for now force a clear
+        self.processed_attributes = dict()
+        self.attributes_list = []
         self.references = []
 
         self.source_tree = ast.parse(inspect.getsource(model))
 
         self.set_attributes()
-        self.rendered = template.render(className=self.name, attributes=self.attributes_list, references=self.references)
+        self.rendered = template.render(className=self.name, attributes=self.attributes_list, references=self.references, constructor_list=self.build_constructor())
 
+        self.build_constructor()
 
     def set_attributes(self):
         """
             Given the original source tree, parse the attributes that exist for this model.
         """
-        processed_attributes = dict()
         for node in ast.walk(self.source_tree):
             # once we hit the example class for a given model, we can stop parsing
             if self.assign_node_is_example(node):
@@ -68,13 +75,18 @@ class Generator:
 
                 for child in ast.walk(node):
                     # if both of these conditions are true, this is an 'Assign' node pertaining to a class attribute
-                    if self.node_is_field(child) and id not in processed_attributes:
+                    if self.node_is_field(child) and id not in self.processed_attributes:
                         # TODO: make this next part way less gross
                         required_char = "?"
                         if self.node_is_required(child):
                             required_char = ""
                         self.attributes_list.append(f'{id}{required_char}: {type};')
-                        processed_attributes[id] = None # mark this ID was processed
+
+                        # mark this ID as processed
+                        self.processed_attributes[id] = {
+                            "required": self.node_is_required(child),
+                            "type": type
+                        }
 
 
     def node_is_field(self, node) -> bool:
@@ -146,11 +158,24 @@ class Generator:
 
     def attribute_has_function_call(self, node):
         """
-            Given an AST node of type 'Assign', determine if it's value is inferered from a function call.
+            Given an AST node of type 'Assign', determine if its value is inferered from a function call.
         """
         return isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute)
 
 
+    def build_constructor(self) -> list:
+        """
+            Generates the lines of the TS model constructor line by line.
+        """
+        lines = list()
+        for attribute, data in self.processed_attributes.items():
+            if data["required"]:
+               lines.append(f'this.{attribute} = jsonData["{attribute}"];')
+            else:
+                # TODO: figure out cleaner tabbing
+                lines.append("if(jsonData[\"{0}\"]) {{\n\t\tthis.{0} = jsonData[\"{0}\"]\n\t}}".format(attribute)) # any non-formatting '{}' symbols have to be doubled up
+
+        return lines
 
 
 # create generators based on the already existing DATABASE_MODELS list
@@ -158,4 +183,4 @@ generators = dict()
 for model in DATABASE_MODELS:
     generators[model.__name__] = Generator(model)
 
-print(generators["MinutesItem"].rendered)
+print(generators["MatterFile"].rendered)
