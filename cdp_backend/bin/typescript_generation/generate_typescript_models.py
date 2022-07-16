@@ -9,19 +9,12 @@ from cdp_backend.database import DATABASE_MODELS
 import inspect
 import ast
 
+from cdp_backend.bin.typescript_generation.models import Attribute, REFERENCE_TYPE, TYPE_MAPPINGS
 
-# mapping of fireo Model field types to TypeScript types
-TYPE_MAPPINGS = {
-    "BooleanField": "boolean",
-    "IDField": "string",
-    "TextField": "string",
-    "NumberField": "number",
-    "DateTime": "Date",
-    "utcnow": "Date",
-}
 
 TYPESCRIPT_TEMPLATE_FILE = "./typescript_model.html"
 template = Environment(loader=FileSystemLoader("./")).get_template(TYPESCRIPT_TEMPLATE_FILE)
+
 
 class Generator:
     """
@@ -30,11 +23,9 @@ class Generator:
     """
     name = ""
     docstring = ""
-    processed_attributes = dict()
+    processed_attributes = {} # dict with key == str, value == Attribute (from ./models.py)
 
     ### below class attributes will be directly printed into the Jinja template. ###
-    attributes_list = [] # contains the lines that declare the attributes in the TS model
-    assignment_list = [] # contains the lines that perform the assignments of the attributes in the TS model's constructor
     references = [] # list of other models that the TS model needs to import
 
     source_tree = {}
@@ -54,6 +45,7 @@ class Generator:
         self.source_tree = ast.parse(inspect.getsource(model))
 
         self.set_attributes()
+        self.set_references()
         self.rendered = template.render(className=self.name, attributes=self.attributes_list, references=self.references, constructor_list=self.build_constructor())
 
         self.build_constructor()
@@ -76,17 +68,24 @@ class Generator:
                 for child in ast.walk(node):
                     # if both of these conditions are true, this is an 'Assign' node pertaining to a class attribute
                     if self.node_is_field(child) and id not in self.processed_attributes:
-                        # TODO: make this next part way less gross
-                        required_char = "?"
-                        if self.node_is_required(child):
-                            required_char = ""
-                        self.attributes_list.append(f'{id}{required_char}: {type};')
-
+                        new_attr = Attribute(id, type, self.node_is_required(child))
+                        self.attributes_list.append(new_attr.build_declaration_line())
+                        print("TYPE:", new_attr.type, "NAME:", self.name)
                         # mark this ID as processed
-                        self.processed_attributes[id] = {
-                            "required": self.node_is_required(child),
-                            "type": type
-                        }
+                        self.processed_attributes[id] = new_attr
+
+    def set_references(self):
+        """
+            After the attributes has been processed, build out the references to import in the TS model. If the Python model was simple enough,
+            it's possible there won't be any referneces to bring in beyond the basics (e.g. ResponseData and Model).
+        """
+        for attr in self.processed_attributes.values():
+            if attr.reference:
+                if len(self.references) == 0: # if this class has any references, then we need to make sure the below import is broguht in.
+                    self.references.append('import { DocumentReference } from "firebase/firestore"')
+                self.references.append(attr.build_reference_line())
+                
+        
 
 
     def node_is_field(self, node) -> bool:
@@ -131,9 +130,8 @@ class Generator:
         if self.attribute_has_function_call(assign_attr):
             try:
                 # need to map the fireo Model field types to an associated TypeScript type
-                if assign_attr.value.func.attr == "ReferenceField":
+                if assign_attr.value.func.attr == REFERENCE_TYPE:
                     type_val = self.extract_reference_field(assign_attr.value) # reference fields require some extra work to determine what type is being referenced
-                    self.references.append(type_val)
                 else:
                     type_val = TYPE_MAPPINGS[assign_attr.value.func.attr]
             except KeyError as e:
@@ -166,16 +164,8 @@ class Generator:
     def build_constructor(self) -> list:
         """
             Generates the lines of the TS model constructor line by line.
-        """
-        lines = list()
-        for attribute, data in self.processed_attributes.items():
-            if data["required"]:
-               lines.append(f'this.{attribute} = jsonData["{attribute}"];')
-            else:
-                # TODO: figure out cleaner tabbing
-                lines.append("if(jsonData[\"{0}\"]) {{\n\t\tthis.{0} = jsonData[\"{0}\"]\n\t}}".format(attribute)) # any non-formatting '{}' symbols have to be doubled up
-
-        return lines
+        """ 
+        return [attr.build_typescript_attribute() for attr in self.processed_attributes.values()]
 
 
 # create generators based on the already existing DATABASE_MODELS list
