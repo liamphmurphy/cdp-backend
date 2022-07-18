@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from xml.dom import NotFoundErr
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from numpy import require
@@ -9,7 +8,7 @@ from cdp_backend.database import DATABASE_MODELS
 import inspect
 import ast
 
-from cdp_backend.bin.typescript_generation.models import Attribute, REFERENCE_TYPE, TYPE_MAPPINGS
+from cdp_backend.bin.typescript_generation.attribute import Attribute, REFERENCE_TYPE, TYPE_MAPPINGS
 
 
 TYPESCRIPT_TEMPLATE_FILE = "./typescript_model.html"
@@ -19,7 +18,7 @@ template = Environment(loader=FileSystemLoader("./")).get_template(TYPESCRIPT_TE
 class Generator:
     """
        Generator will contain metadata and support utilities for capturing the data needed
-       from one of the Python models to generate an equivalent TypeScript model
+       from a Python model to generate an equivalent TypeScript model.
     """
     name = ""
     docstring = ""
@@ -69,11 +68,20 @@ class Generator:
                     # if both of these conditions are true, this is an 'Assign' node pertaining to a class attribute
                     if self.node_is_field(child) and id not in self.processed_attributes:
                         new_attr = Attribute(id, type, self.node_is_required(child))
+                        # if this field is a reference, we need to build a second declaration that defines an attribute directly
+                        # on the reference type. e.g. if the type is "Matter", we will have a "matter_ref" attribute, and an associated "matter"
+                        # attribute of type "Matter".
+                        if new_attr.is_reference(type):
+                            secondary_attr = Attribute(type.lower(), type)
+                            self.attributes_list.append(secondary_attr.build_declaration_line())
+                            self.processed_attributes[type.lower()] = secondary_attr
+                            secondary_attr.assign_parent_ref_id(new_attr.id)
+                            new_attr.type = "string" # since the original attribute is going to be the "ref" field, force assigning it as a string.
+                       
                         self.attributes_list.append(new_attr.build_declaration_line())
-                        print("TYPE:", new_attr.type, "NAME:", self.name)
                         # mark this ID as processed
                         self.processed_attributes[id] = new_attr
-
+ 
     def set_references(self):
         """
             After the attributes has been processed, build out the references to import in the TS model. If the Python model was simple enough,
